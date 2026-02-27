@@ -5,6 +5,7 @@ create table if not exists public.files (
   mime_type text,
   size_bytes bigint not null check (size_bytes >= 0),
   storage_path text not null unique,
+  ai_summary text,
   created_at timestamptz not null default now()
 );
 

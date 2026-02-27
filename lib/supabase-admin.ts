@@ -7,6 +7,7 @@ export type ManagedFile = {
   mime_type: string | null;
   size_bytes: number;
   storage_path: string;
+  ai_summary?: string | null;
   created_at: string;
 };
 

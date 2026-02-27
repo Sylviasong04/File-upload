@@ -1,0 +1,130 @@
+import { NextResponse } from "next/server";
+import OpenAI from "openai";
+import pdfParse from "pdf-parse";
+import { env } from "@/lib/env";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+
+const MAX_TEXT_CHARS = 18000;
+
+function normalizeText(input: string) {
+  return input.replace(/\s+/g, " ").trim();
+}
+
+export async function GET(_: Request, { params }: { params: { id: string } }) {
+  if (!env.openaiApiKey) {
+    return NextResponse.json({ error: "未配置 OPENAI_API_KEY，无法生成 AI 摘要" }, { status: 500 });
+  }
+
+  const fileId = params.id;
+
+  const getRes = await supabaseAdmin
+    .from("files")
+    .select("id, original_name, storage_path, mime_type")
+    .eq("id", fileId)
+    .single();
+
+  if (getRes.error) {
+    return NextResponse.json({ error: "文件不存在" }, { status: 404 });
+  }
+
+  const mimeType = (getRes.data.mime_type || "").toLowerCase();
+  if (mimeType !== "application/pdf" && !(getRes.data.original_name as string).toLowerCase().endsWith(".pdf")) {
+    return NextResponse.json({ error: "仅支持 PDF 文档摘要" }, { status: 400 });
+  }
+
+  const downloadRes = await supabaseAdmin.storage
+    .from(env.supabaseStorageBucket)
+    .download(getRes.data.storage_path as string);
+
+  if (downloadRes.error || !downloadRes.data) {
+    return NextResponse.json({ error: `下载 PDF 失败: ${downloadRes.error?.message || "未知错误"}` }, { status: 500 });
+  }
+
+  const buffer = Buffer.from(await downloadRes.data.arrayBuffer());
+
+  let parsedText = "";
+  try {
+    const parsed = await pdfParse(buffer);
+    parsedText = normalizeText(parsed.text || "");
+  } catch {
+    return NextResponse.json({ error: "PDF 解析失败，无法生成摘要" }, { status: 500 });
+  }
+
+  if (!parsedText) {
+    return NextResponse.json({ error: "PDF 未提取到可用文本" }, { status: 400 });
+  }
+
+  const clippedText = parsedText.slice(0, MAX_TEXT_CHARS);
+  const openai = new OpenAI({
+    apiKey: env.openaiApiKey,
+    baseURL: env.openaiBaseUrl
+  });
+  let summary = "";
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: env.openaiModel,
+      messages: [
+        {
+          role: "system",
+          content: "你是文档分析助手。请输出中文摘要，结构清晰，准确保留关键结论。"
+        },
+        {
+          role: "user",
+          content: `请对以下 PDF 文本生成摘要：\n\n${clippedText}\n\n输出格式：\n1) 三句话总览\n2) 关键要点（3-6条）\n3) 一句结论`
+        }
+      ]
+    });
+    summary = response.choices?.[0]?.message?.content?.trim() || "";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("AI summary failed:", message);
+    return NextResponse.json(
+      { error: "调用 AI 模型失败，请检查 OPENAI_API_KEY 和模型配置", detail: message },
+      { status: 500 }
+    );
+  }
+
+  if (!summary) {
+    return NextResponse.json({ error: "AI 未返回摘要结果" }, { status: 500 });
+  }
+
+  const saveRes = await supabaseAdmin
+    .from("files")
+    .update({ ai_summary: summary })
+    .eq("id", fileId);
+
+  if (saveRes.error) {
+    return NextResponse.json({ error: `摘要已生成但保存失败: ${saveRes.error.message}` }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    data: {
+      summary,
+      sourceChars: clippedText.length,
+      model: env.openaiModel
+    }
+  });
+}
+
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const fileId = params.id;
+  const body = await req.json().catch(() => null);
+
+  if (!body || typeof body.summary !== "string") {
+    return NextResponse.json({ error: "请提供 summary 字段" }, { status: 400 });
+  }
+
+  const updateRes = await supabaseAdmin
+    .from("files")
+    .update({ ai_summary: body.summary })
+    .eq("id", fileId)
+    .select("id, ai_summary")
+    .single();
+
+  if (updateRes.error) {
+    return NextResponse.json({ error: `摘要保存失败: ${updateRes.error.message}` }, { status: 500 });
+  }
+
+  return NextResponse.json({ data: updateRes.data });
+}

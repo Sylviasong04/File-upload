@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("files")
-    .select("id, original_name, mime_type, size_bytes, created_at")
+    .select("id, original_name, mime_type, size_bytes, created_at, ai_summary")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -18,6 +18,18 @@ export async function GET() {
   }
 
   return NextResponse.json({ data: data satisfies Partial<ManagedFile>[] });
+}
+
+function isPdfMimeOrName(file: File) {
+  const mimeLooksPdf = file.type === "application/pdf";
+  const nameLooksPdf = file.name.toLowerCase().endsWith(".pdf");
+  return mimeLooksPdf || nameLooksPdf;
+}
+
+function hasPdfMagicHeader(bytes: Uint8Array) {
+  if (bytes.length < 5) return false;
+  const header = new TextDecoder().decode(bytes.slice(0, 5));
+  return header === "%PDF-";
 }
 
 export async function POST(req: Request) {
@@ -36,11 +48,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "文件大小超过 10MB 限制" }, { status: 400 });
   }
 
-  const extension = file.name.includes(".") ? file.name.split(".").pop() : "bin";
-  const storagePath = `${new Date().toISOString().slice(0, 10)}/${randomUUID()}.${extension}`;
+  if (!isPdfMimeOrName(file)) {
+    return NextResponse.json({ error: "仅支持上传 PDF 文件" }, { status: 400 });
+  }
 
-  const uploadRes = await supabaseAdmin.storage.from(env.supabaseStorageBucket).upload(storagePath, file, {
-    contentType: file.type || "application/octet-stream",
+  const fileBytes = new Uint8Array(await file.arrayBuffer());
+  if (!hasPdfMagicHeader(fileBytes)) {
+    return NextResponse.json({ error: "文件内容不是有效 PDF" }, { status: 400 });
+  }
+
+  const storagePath = `${new Date().toISOString().slice(0, 10)}/${randomUUID()}.pdf`;
+
+  const uploadRes = await supabaseAdmin.storage.from(env.supabaseStorageBucket).upload(storagePath, fileBytes, {
+    contentType: "application/pdf",
     upsert: false
   });
 
@@ -52,7 +72,7 @@ export async function POST(req: Request) {
     .from("files")
     .insert({
       original_name: file.name,
-      mime_type: file.type || null,
+      mime_type: "application/pdf",
       size_bytes: file.size,
       storage_path: storagePath
     })
