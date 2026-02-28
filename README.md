@@ -244,7 +244,6 @@ git push -u origin $(git branch --show-current)
 ![13-vercel-ready](docs/screenshots/13-vercel-ready.png)
 
 14. 线上功能验证截图（可拼图或多图）  
-- 至少包含线上上传（PDF）、阅读、AI 摘要、下载、删除成功的证据。  
 ![14-vercel-e2e](docs/screenshots/14-vercel-e2e.png)
 
 ## 10. 创新点
