@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getStorageBucket, getSupabaseAdmin } from "@/lib/supabase-admin";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const fileId = params.id;
   const supabaseAdmin = getSupabaseAdmin();
@@ -29,7 +33,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     { data: { url: signedRes.data.signedUrl } },
     {
       headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0"
       }
     }
   );
