@@ -390,7 +390,6 @@ export default function HomePage() {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Type</th>
                     <th>Size</th>
                     <th>Uploaded At</th>
                     <th>Actions</th>
@@ -402,7 +401,6 @@ export default function HomePage() {
                       <td className="file-name" title={file.original_name}>
                         {file.original_name}
                       </td>
-                      <td>{file.mime_type || "Unknown"}</td>
                       <td>{bytesToReadable(file.size_bytes)}</td>
                       <td>{new Date(file.created_at).toLocaleString("en-US")}</td>
                       <td>

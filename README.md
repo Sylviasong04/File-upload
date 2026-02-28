@@ -211,7 +211,7 @@ git push -u origin $(git branch --show-current)
 ![06-local-pdf-preview](docs/screenshots/06-local-pdf-preview.png)
 
 07. 本地 AI 摘要功能测试截图  
-- 点击“AI 摘要”后显示中文摘要结果。  
+- 点击“AI 摘要”后显示摘要结果。  
 ![07-local-ai-summary](docs/screenshots/07-local-ai-summary.png)
 
 08. 本地下载功能测试截图  
@@ -250,11 +250,7 @@ git push -u origin $(git branch --show-current)
 - 至少包含线上上传（PDF）、阅读、AI 摘要、下载、删除成功的证据。  
 ![15-vercel-e2e](docs/screenshots/15-vercel-e2e.png)
 
-## 10. README 中建议附加的测试结论模板
+## 10. 创新点
 
-可在提交前补充如下简短结论（示例）：
-
-- 本地环境（日期：YYYY-MM-DD）已验证上传（仅 PDF）、列表、阅读、AI 摘要、下载、删除均正常。  
-- Supabase Storage 与 `public.files` 表数据一致。  
-- Vercel 生产环境（日期：YYYY-MM-DD）已验证同样功能均正常。  
-- 已按开发过程进行多次提交并推送到 GitHub。
+- 增加了对ai总结文本划线右键提问的功能。
+![16- innovation](docs/screenshots/16-innovation.png)

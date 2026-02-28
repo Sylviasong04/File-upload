@@ -67,11 +67,23 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       messages: [
         {
           role: "system",
-          content: "你是文档分析助手。请根据原文档输出摘要，结构清晰，准确保留关键结论。"
+          content: " You are a document analysis assistant. Please generate a summary based on the original document. The summary should be well-structured, accurately preserve the key conclusions, and use language grounded in the original document."
         },
         {
           role: "user",
-          content: `请对以下 PDF 文本生成摘要：\n\n${clippedText}\n\n输出格式：\n1) 三句话总览\n2) 关键要点（3-6条）\n3) 一句结论`
+          content: `Please generate a structured summary of the following PDF text:
+        
+        ${clippedText}
+        
+        Requirements:
+        - Base the summary strictly on the original text.
+        - Preserve key arguments and conclusions.
+        - Do not add new information.
+        
+        Output Format:
+        1) Three-Sentence Overview
+        2) Key Points (3–6 bullet points)
+        3) One-Sentence Conclusion`
         }
       ]
     });

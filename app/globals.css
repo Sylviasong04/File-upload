@@ -189,11 +189,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 8px;
-  table-layout: fixed;
-}
-
-tbody tr {
-  height: 56px;
+  table-layout: auto;
 }
 
 thead th {
@@ -220,14 +216,21 @@ td {
   word-break: break-word;
 }
 
+th:nth-child(2),
+td:nth-child(2),
+th:nth-child(3),
+td:nth-child(3),
+th:nth-child(4),
+td:nth-child(4) {
+  white-space: nowrap;
+}
+
 .file-name {
   max-width: 100%;
-  white-space: nowrap;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  display: block;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .actions {
@@ -235,11 +238,25 @@ td {
   gap: 8px;
   flex-wrap: nowrap;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .actions button {
-  flex: 1 1 auto;
-  min-width: 72px;
+  flex: 0 0 auto;
+  min-width: 88px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+@media (min-width: 721px) {
+  tbody td {
+    height: 56px;
+  }
+
+  tbody td:first-child {
+    display: flex;
+    align-items: center;
+  }
 }
 
 .status {
