@@ -185,6 +185,14 @@ export default function HomePage() {
   }
 
   async function handleDelete(id: string) {
+    const target = files.find((file) => file.id === id);
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this file?\n\n${target?.original_name || id}`
+    );
+    if (!confirmed) {
+      return;
+    }
+
     setBusy(true);
     setStatus("Deleting...");
 
@@ -212,7 +220,7 @@ export default function HomePage() {
       }
 
       await loadFiles();
-      setStatus("Deleted.");
+      setStatus("Delete successful.");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Delete failed.");
     } finally {

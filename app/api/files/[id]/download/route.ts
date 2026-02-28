@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { env } from "@/lib/env";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getStorageBucket, getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const fileId = params.id;
+  const supabaseAdmin = getSupabaseAdmin();
+  const storageBucket = getStorageBucket();
 
   const getRes = await supabaseAdmin
     .from("files")
@@ -15,12 +16,13 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({ error: "文件不存在" }, { status: 404 });
   }
 
-  const path = getRes.data.storage_path as string;
+  const row = getRes.data as unknown as { storage_path: string; original_name: string };
+  const path = row.storage_path;
 
   const signedRes = await supabaseAdmin.storage
-    .from(env.supabaseStorageBucket)
+    .from(storageBucket)
     .createSignedUrl(path, 60, {
-      download: getRes.data.original_name as string
+      download: row.original_name
     });
 
   if (signedRes.error || !signedRes.data?.signedUrl) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import pdfParse from "pdf-parse";
 import { env } from "@/lib/env";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getStorageBucket, getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const MAX_TEXT_CHARS = 18000;
 
@@ -16,6 +16,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 
   const fileId = params.id;
+  const supabaseAdmin = getSupabaseAdmin();
+  const storageBucket = getStorageBucket();
 
   const getRes = await supabaseAdmin
     .from("files")
@@ -27,14 +29,16 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({ error: "文件不存在" }, { status: 404 });
   }
 
-  const mimeType = (getRes.data.mime_type || "").toLowerCase();
-  if (mimeType !== "application/pdf" && !(getRes.data.original_name as string).toLowerCase().endsWith(".pdf")) {
+  const row = getRes.data as unknown as { original_name: string; storage_path: string; mime_type: string | null };
+
+  const mimeType = (row.mime_type || "").toLowerCase();
+  if (mimeType !== "application/pdf" && !row.original_name.toLowerCase().endsWith(".pdf")) {
     return NextResponse.json({ error: "仅支持 PDF 文档摘要" }, { status: 400 });
   }
 
   const downloadRes = await supabaseAdmin.storage
-    .from(env.supabaseStorageBucket)
-    .download(getRes.data.storage_path as string);
+    .from(storageBucket)
+    .download(row.storage_path);
 
   if (downloadRes.error || !downloadRes.data) {
     return NextResponse.json({ error: `下载 PDF 失败: ${downloadRes.error?.message || "未知错误"}` }, { status: 500 });
@@ -121,6 +125,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const fileId = params.id;
+  const supabaseAdmin = getSupabaseAdmin();
   const body = await req.json().catch(() => null);
 
   if (!body || typeof body.summary !== "string") {

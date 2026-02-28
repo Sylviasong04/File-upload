@@ -236,21 +236,18 @@ git push -u origin $(git branch --show-current)
 - bucket 内能看到上传后的 PDF 文档对象。  
 ![12-supabase-storage-object](docs/screenshots/12-supabase-storage-object.png)
 
-13. Supabase 数据表记录截图  
-- `Table Editor -> files` 中能看到对应元数据记录。  
-![13-supabase-table-files](docs/screenshots/13-supabase-table-files.png)
 
 ### 9.4 Vercel 部署与线上验证截图（Deployment）
 
-14. Vercel 部署成功截图  
+13. Vercel 部署成功截图  
 - Vercel Dashboard 显示 `Ready` / `Production`。  
-![14-vercel-ready](docs/screenshots/14-vercel-ready.png)
+![13-vercel-ready](docs/screenshots/13-vercel-ready.png)
 
-15. 线上功能验证截图（可拼图或多图）  
+14. 线上功能验证截图（可拼图或多图）  
 - 至少包含线上上传（PDF）、阅读、AI 摘要、下载、删除成功的证据。  
-![15-vercel-e2e](docs/screenshots/15-vercel-e2e.png)
+![14-vercel-e2e](docs/screenshots/14-vercel-e2e.png)
 
 ## 10. 创新点
 
 - 增加了对ai总结文本划线右键提问的功能。
-![16- innovation](docs/screenshots/16-innovation.png)
+![15- innovation](docs/screenshots/15-innovation.png)

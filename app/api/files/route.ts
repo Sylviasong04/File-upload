@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import { env } from "@/lib/env";
-import { ManagedFile, supabaseAdmin } from "@/lib/supabase-admin";
+import { ManagedFile, getStorageBucket, getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const runtime = "nodejs";
 
 export async function GET() {
+  const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("files")
     .select("id, original_name, mime_type, size_bytes, created_at, ai_summary")
@@ -33,6 +33,8 @@ function hasPdfMagicHeader(bytes: Uint8Array) {
 }
 
 export async function POST(req: Request) {
+  const supabaseAdmin = getSupabaseAdmin();
+  const storageBucket = getStorageBucket();
   const formData = await req.formData();
   const file = formData.get("file");
 
@@ -59,7 +61,7 @@ export async function POST(req: Request) {
 
   const storagePath = `${new Date().toISOString().slice(0, 10)}/${randomUUID()}.pdf`;
 
-  const uploadRes = await supabaseAdmin.storage.from(env.supabaseStorageBucket).upload(storagePath, fileBytes, {
+  const uploadRes = await supabaseAdmin.storage.from(storageBucket).upload(storagePath, fileBytes, {
     contentType: "application/pdf",
     upsert: false
   });
@@ -80,7 +82,7 @@ export async function POST(req: Request) {
     .single();
 
   if (insertRes.error) {
-    await supabaseAdmin.storage.from(env.supabaseStorageBucket).remove([storagePath]);
+    await supabaseAdmin.storage.from(storageBucket).remove([storagePath]);
     return NextResponse.json({ error: `数据库写入失败: ${insertRes.error.message}` }, { status: 500 });
   }
 
