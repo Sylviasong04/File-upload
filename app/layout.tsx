@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Supabase 文档上传与管理",
-  description: "使用 Next.js + Supabase Storage + API 路由实现文件管理"
+  title: "Summary-AI",
+  description: "File management with Next.js, Supabase Storage, and API routes"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );

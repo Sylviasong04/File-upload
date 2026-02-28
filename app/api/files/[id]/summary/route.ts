@@ -67,7 +67,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       messages: [
         {
           role: "system",
-          content: "你是文档分析助手。请输出中文摘要，结构清晰，准确保留关键结论。"
+          content: "你是文档分析助手。请根据原文档输出摘要，结构清晰，准确保留关键结论。"
         },
         {
           role: "user",

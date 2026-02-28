@@ -55,7 +55,7 @@ npm run dev
 ### 5.1 上传文件（仅 PDF）
 - 前端选择文件后调用 `POST /api/files`。
 - 后端执行：
-  1. 校验文件大小（当前限制 10MB）
+  1. 校验文件大小（当前限制 20MB）
   2. 校验文件扩展名/MIME/文件头（仅允许有效 PDF）
   3. 上传到 Supabase Storage
   4. 写入 `public.files` 元数据

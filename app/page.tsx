@@ -48,12 +48,31 @@ export default function HomePage() {
   const [askAnswer, setAskAnswer] = useState("");
   const [askLoading, setAskLoading] = useState(false);
   const [askPos, setAskPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+
+  const loadingSteps = useMemo(
+    () => ["Extracting PDF text", "Analyzing context", "Generating summary", "Formatting output"],
+    []
+  );
 
   const summaryHtml = useMemo(() => {
     if (!summaryText) return "";
     const raw = marked.parse(summaryText, { breaks: true }) as string;
     return DOMPurify.sanitize(raw);
   }, [summaryText]);
+
+  const totalSize = useMemo(() => files.reduce((acc, file) => acc + file.size_bytes, 0), [files]);
+
+  useEffect(() => {
+    if (!summaryLoading) {
+      setLoadingStepIndex(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setLoadingStepIndex((prev) => (prev + 1) % loadingSteps.length);
+    }, 1100);
+    return () => clearInterval(timer);
+  }, [summaryLoading, loadingSteps.length]);
 
   function handleSummaryContextMenu(event: React.MouseEvent) {
     if (isEditingSummary || summaryLoading) {
@@ -77,7 +96,7 @@ export default function HomePage() {
 
   async function handleAskSubmit() {
     if (!askSelection || !askQuestion) {
-      setStatus("请先选中文本并输入问题");
+      setStatus("Please select text and enter a question.");
       return;
     }
     setAskLoading(true);
@@ -89,25 +108,24 @@ export default function HomePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.error || "提问失败");
+        throw new Error(json.error || "Question failed.");
       }
       setAskAnswer(json.data.answer);
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "提问失败");
+      setStatus(e instanceof Error ? e.message : "Question failed.");
     } finally {
       setAskLoading(false);
     }
   }
 
-  const totalSize = useMemo(() => files.reduce((acc, file) => acc + file.size_bytes, 0), [files]);
-
   async function loadFiles() {
     const res = await fetch("/api/files", { cache: "no-store" });
     const json = await res.json();
     if (!res.ok) {
-      throw new Error(json.error || "加载文件失败");
+      throw new Error(json.error || "Failed to load files.");
     }
     setFiles(json.data);
+
     const current = json.data.find((file: FileItem) => file.id === summaryFileId);
     if (current && current.ai_summary && !summaryText) {
       setSummaryText(current.ai_summary);
@@ -124,17 +142,17 @@ export default function HomePage() {
     const fileToUpload = fileOverride || selectedFile;
 
     if (!fileToUpload) {
-      setStatus("请先选择一个文件");
+      setStatus("Please select a file first.");
       return;
     }
 
     if (!isPdfFile(fileToUpload)) {
-      setStatus("仅支持上传 PDF 文件");
+      setStatus("Only PDF files are allowed.");
       return;
     }
 
     setBusy(true);
-    setStatus("正在上传 PDF...");
+    setStatus("Uploading PDF...");
 
     try {
       const formData = new FormData();
@@ -147,7 +165,7 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.error || "上传失败");
+        throw new Error(json.error || "Upload failed.");
       }
 
       setSelectedFile(null);
@@ -158,9 +176,9 @@ export default function HomePage() {
       if (json?.data?.id && json?.data?.original_name) {
         await handlePreview(json.data.id, json.data.original_name);
       }
-      setStatus("上传成功");
+      setStatus("Upload completed.");
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "上传失败");
+      setStatus(e instanceof Error ? e.message : "Upload failed.");
     } finally {
       setBusy(false);
     }
@@ -168,7 +186,7 @@ export default function HomePage() {
 
   async function handleDelete(id: string) {
     setBusy(true);
-    setStatus("正在删除...");
+    setStatus("Deleting...");
 
     try {
       const res = await fetch(`/api/files/${id}`, {
@@ -177,7 +195,7 @@ export default function HomePage() {
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.error || "删除失败");
+        throw new Error(json.error || "Delete failed.");
       }
 
       if (previewFileId === id) {
@@ -194,9 +212,9 @@ export default function HomePage() {
       }
 
       await loadFiles();
-      setStatus("删除成功");
+      setStatus("Deleted.");
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "删除失败");
+      setStatus(e instanceof Error ? e.message : "Delete failed.");
     } finally {
       setBusy(false);
     }
@@ -206,17 +224,17 @@ export default function HomePage() {
     setBusy(true);
 
     try {
-      const res = await fetch(`/api/files/${id}/download`);
+      const res = await fetch(`/api/files/${id}/download`, { cache: "no-store" });
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.error || "下载链接生成失败");
+        throw new Error(json.error || "Failed to generate download link.");
       }
 
       window.open(json.data.url, "_blank", "noopener,noreferrer");
-      setStatus("下载链接已生成");
+      setStatus("Download link generated.");
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "下载失败");
+      setStatus(e instanceof Error ? e.message : "Download failed.");
     } finally {
       setBusy(false);
     }
@@ -226,11 +244,11 @@ export default function HomePage() {
     setBusy(true);
 
     try {
-      const res = await fetch(`/api/files/${id}/view-url`);
+      const res = await fetch(`/api/files/${id}/view-url`, { cache: "no-store" });
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.error || "预览链接生成失败");
+        throw new Error(json.error || "Failed to generate preview link.");
       }
 
       setPreviewUrl(json.data.url);
@@ -249,9 +267,9 @@ export default function HomePage() {
         setIsEditingSummary(false);
       }
       setShowFileList(false);
-      setStatus(`正在预览：${fileName}`);
+      setStatus(`Previewing: ${fileName}`);
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "预览失败");
+      setStatus(e instanceof Error ? e.message : "Preview failed.");
     } finally {
       setBusy(false);
     }
@@ -264,20 +282,20 @@ export default function HomePage() {
       setSummaryText(existingSummary);
       setSummaryDraft(existingSummary);
       setIsEditingSummary(false);
-      setStatus("已加载已存摘要");
+      setStatus("Loaded saved summary.");
       return;
     }
 
     setBusy(true);
     setSummaryLoading(true);
-    setStatus("正在生成 AI 摘要...");
+    setStatus("Generating AI summary...");
 
     try {
       const res = await fetch(`/api/files/${id}/summary`);
       const json = await res.json();
 
       if (!res.ok) {
-        throw new Error(json.error || "摘要生成失败");
+        throw new Error(json.error || "Summary generation failed.");
       }
 
       setSummaryFileId(id);
@@ -285,9 +303,9 @@ export default function HomePage() {
       setSummaryText(json.data.summary);
       setSummaryDraft(json.data.summary);
       setIsEditingSummary(false);
-      setStatus("摘要生成成功");
+      setStatus("Summary generated.");
     } catch (e) {
-      setStatus(e instanceof Error ? e.message : "摘要生成失败");
+      setStatus(e instanceof Error ? e.message : "Summary generation failed.");
     } finally {
       setBusy(false);
       setSummaryLoading(false);
@@ -298,14 +316,14 @@ export default function HomePage() {
 
   return (
     <main>
-      <h1>PDF 上传与文件管理</h1>
-      <p>仅支持 PDF 文件。支持上传、预览阅读、下载、删除和 AI 摘要。</p>
+      <h1>PDF Upload & File Manager</h1>
+      <p>PDF only. Upload, preview, download, delete, and AI summary.</p>
 
       {!hasFiles ? (
         <section className="empty-state">
           <div className="card upload-card-large">
-            <h2>上传 PDF</h2>
-            <p className="tip">首次上传后将进入阅读页面。</p>
+            <h2>Upload PDF</h2>
+            <p className="tip">After first upload, the reader view opens automatically.</p>
             <div className="row">
               <input
                 id="file-input"
@@ -315,7 +333,7 @@ export default function HomePage() {
                 disabled={busy}
               />
               <button onClick={() => handleUpload()} disabled={busy || !selectedFile}>
-                上传
+                Upload
               </button>
             </div>
           </div>
@@ -331,18 +349,18 @@ export default function HomePage() {
                   input?.click();
                 }}
               >
-                上传新文件
+                Upload New File
               </button>
               <button className="secondary" onClick={() => setShowFileList((prev) => !prev)}>
-                文件列表
+                File List
               </button>
               <div className="current-file">
-                <span className="label">当前文件</span>
-                <span className="value">{previewFileName || "未选择"}</span>
+                <span className="label">Current File</span>
+                <span className="value">{previewFileName || "None selected"}</span>
               </div>
             </div>
             <div className="row topbar-right">
-              <span className="status-pill">{summaryLoading ? "AI 生成中" : summaryText ? "已生成摘要" : "未生成摘要"}</span>
+              <span className="status-pill">{summaryLoading ? "AI generating" : summaryText ? "Summary ready" : "No summary yet"}</span>
             </div>
           </section>
 
@@ -363,19 +381,19 @@ export default function HomePage() {
           {showFileList ? (
             <section className="card">
               <div className="row" style={{ justifyContent: "space-between" }}>
-                <h2 style={{ margin: 0 }}>文件列表</h2>
+                <h2 style={{ margin: 0 }}>Files</h2>
                 <p style={{ margin: 0 }}>
-                  共 {files.length} 个文件，合计 {bytesToReadable(totalSize)}
+                  {files.length} files, total {bytesToReadable(totalSize)}
                 </p>
               </div>
               <table>
                 <thead>
                   <tr>
-                    <th>文件名</th>
-                    <th>类型</th>
-                    <th>大小</th>
-                    <th>上传时间</th>
-                    <th>操作</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Size</th>
+                    <th>Uploaded At</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -384,19 +402,19 @@ export default function HomePage() {
                       <td className="file-name" title={file.original_name}>
                         {file.original_name}
                       </td>
-                      <td>{file.mime_type || "未知"}</td>
+                      <td>{file.mime_type || "Unknown"}</td>
                       <td>{bytesToReadable(file.size_bytes)}</td>
-                      <td>{new Date(file.created_at).toLocaleString("zh-CN")}</td>
+                      <td>{new Date(file.created_at).toLocaleString("en-US")}</td>
                       <td>
                         <div className="actions">
                           <button className="secondary" disabled={busy} onClick={() => handlePreview(file.id, file.original_name, file.ai_summary)}>
-                            阅读
+                            Open
                           </button>
                           <button className="secondary" disabled={busy} onClick={() => handleDownload(file.id)}>
-                            下载
+                            Download
                           </button>
                           <button className="danger" disabled={busy} onClick={() => handleDelete(file.id)}>
-                            删除
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -412,10 +430,10 @@ export default function HomePage() {
               <section className="reader-grid">
                 <section className="card reader-left">
                   <div className="row" style={{ justifyContent: "space-between" }}>
-                    <h2 style={{ margin: 0 }}>{`PDF 阅读：${previewFileName}`}</h2>
+                    <h2 style={{ margin: 0 }}>{`PDF Reader: ${previewFileName}`}</h2>
                     <div className="actions">
                       <button className="secondary" onClick={() => setFullPreviewOpen(true)}>
-                        全屏阅读
+                        Fullscreen
                       </button>
                     </div>
                   </div>
@@ -426,17 +444,17 @@ export default function HomePage() {
 
                 <section className="card reader-right">
                   <div className="row" style={{ justifyContent: "space-between" }}>
-                    <h2 style={{ marginTop: 0 }}>AI 摘要：{summaryFileName}</h2>
+                    <h2 style={{ marginTop: 0 }}>AI Summary: {summaryFileName}</h2>
                     <div className="actions">
                       <button className="secondary" onClick={() => setIsEditingSummary((prev) => !prev)}>
-                        {isEditingSummary ? "预览" : "编辑"}
+                        {isEditingSummary ? "Preview" : "Edit"}
                       </button>
                       {isEditingSummary ? (
                         <button
                           className="secondary"
                           onClick={() => {
                             if (!summaryFileId) {
-                              setStatus("请先选择一个摘要来源文件");
+                              setStatus("Please select a source file first.");
                               return;
                             }
                             fetch(`/api/files/${summaryFileId}/summary`, {
@@ -451,12 +469,12 @@ export default function HomePage() {
                                 }
                                 setSummaryText(summaryDraft);
                                 setIsEditingSummary(false);
-                                setStatus("摘要已保存");
+                                setStatus("Summary saved.");
                               })
-                              .catch((e) => setStatus(e instanceof Error ? e.message : "摘要保存失败"));
+                              .catch((e) => setStatus(e instanceof Error ? e.message : "Failed to save summary."));
                           }}
                         >
-                          应用修改
+                          Apply
                         </button>
                       ) : null}
                     </div>
@@ -464,9 +482,13 @@ export default function HomePage() {
 
                   <div className="panel-content">
                     {summaryLoading ? (
-                      <div className="summary-loading">
-                        <div className="dots" />
-                        <p>AI 生成中，请稍后...</p>
+                      <div className="summary-loading rich-loading">
+                        <div className="loading-badge">AI Summary in Progress</div>
+                        <div className="loading-step">{loadingSteps[loadingStepIndex]}</div>
+                        <div className="loading-bar-track">
+                          <div className="loading-bar-fill" />
+                        </div>
+                        <div className="loading-subtle">This usually takes a few seconds.</div>
                       </div>
                     ) : isEditingSummary ? (
                       <textarea
@@ -487,10 +509,10 @@ export default function HomePage() {
             ) : (
               <section className="card reader-single">
                 <div className="row" style={{ justifyContent: "space-between" }}>
-                  <h2 style={{ margin: 0 }}>{`PDF 阅读：${previewFileName}`}</h2>
+                  <h2 style={{ margin: 0 }}>{`PDF Reader: ${previewFileName}`}</h2>
                   <div className="actions">
                     <button className="secondary" onClick={() => setFullPreviewOpen(true)}>
-                      全屏阅读
+                      Fullscreen
                     </button>
                   </div>
                 </div>
@@ -503,29 +525,34 @@ export default function HomePage() {
                     disabled={busy || !previewFileId}
                     onClick={() => handleSummary(previewFileId, previewFileName, files.find((f) => f.id === previewFileId)?.ai_summary)}
                   >
-                    点击生成 AI 摘要
+                    Generate AI Summary
                   </button>
-                  {summaryLoading ? <span className="tip">AI 生成中，请稍后...</span> : null}
+                  {summaryLoading ? (
+                    <div className="inline-loading">
+                      <div className="mini-dots" />
+                      <span className="tip">{loadingSteps[loadingStepIndex]}...</span>
+                    </div>
+                  ) : null}
                 </div>
               </section>
             )
           ) : (
             <section className="empty-state">
-              <p className="tip">请先从文件列表中选择一个文件。</p>
+              <p className="tip">Select a file from the list first.</p>
             </section>
           )}
         </>
       )}
 
-      {status ? <p className="status">状态：{status}</p> : null}
+      {status ? <p className="status">Status: {status}</p> : null}
 
       {fullPreviewOpen && previewUrl ? (
         <section className="overlay">
           <div className="overlay-card">
             <div className="row" style={{ justifyContent: "space-between" }}>
-              <h2 style={{ margin: 0 }}>全屏阅读：{previewFileName}</h2>
+              <h2 style={{ margin: 0 }}>Fullscreen Reader: {previewFileName}</h2>
               <button className="secondary" onClick={() => setFullPreviewOpen(false)}>
-                退出全屏
+                Exit Fullscreen
               </button>
             </div>
             <iframe title="pdf-preview-fullscreen" src={previewUrl} className="pdf-frame-full" />
@@ -538,27 +565,39 @@ export default function HomePage() {
           <div className="ask-backdrop" onClick={() => setAskOpen(false)} />
           <div className="ask-popover" style={{ top: askPos.y, left: askPos.x }}>
             <div className="row ask-popover-header">
-              <strong>提问选中文本</strong>
+              <strong>Ask About Selected Text</strong>
               <button className="secondary" onClick={() => setAskOpen(false)}>
-                关闭
+                Close
               </button>
             </div>
             <div className="ask-selection">{askSelection}</div>
             <textarea
               className="summary-editor ask-input"
-              placeholder="输入你的问题"
+              placeholder="Type your question"
               value={askQuestion}
               onChange={(e) => setAskQuestion(e.target.value)}
             />
             <div className="row">
               <button className="secondary" disabled={askLoading} onClick={handleAskSubmit}>
-                提问
+                Ask
               </button>
-              {askLoading ? <span className="tip">AI 正在回答...</span> : null}
+              {askLoading ? <span className="tip">AI is answering...</span> : null}
             </div>
             {askAnswer ? <div className="markdown-body">{askAnswer}</div> : null}
           </div>
         </>
+      ) : null}
+
+      {summaryLoading ? (
+        <section className="loading-dock" aria-live="polite">
+          <div className="loading-dock-card">
+            <div className="loading-dock-title">Generating AI Summary</div>
+            <div className="loading-dock-step">{loadingSteps[loadingStepIndex]}</div>
+            <div className="loading-bar-track">
+              <div className="loading-bar-fill" />
+            </div>
+          </div>
+        </section>
       ) : null}
     </main>
   );

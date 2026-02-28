@@ -3,7 +3,7 @@ import { randomUUID } from "crypto";
 import { env } from "@/lib/env";
 import { ManagedFile, supabaseAdmin } from "@/lib/supabase-admin";
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const runtime = "nodejs";
 
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   }
 
   if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: "文件大小超过 10MB 限制" }, { status: 400 });
+    return NextResponse.json({ error: "文件大小超过 20MB 限制" }, { status: 400 });
   }
 
   if (!isPdfMimeOrName(file)) {
