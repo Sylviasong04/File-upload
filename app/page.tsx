@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 
@@ -49,6 +49,7 @@ export default function HomePage() {
   const [askLoading, setAskLoading] = useState(false);
   const [askPos, setAskPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [loadingStepIndex, setLoadingStepIndex] = useState(0);
+  const previewRetryRef = useRef(false);
 
   const loadingSteps = useMemo(
     () => ["Extracting PDF text", "Analyzing context", "Generating summary", "Formatting output"],
@@ -232,14 +233,29 @@ export default function HomePage() {
     setBusy(true);
 
     try {
-      const res = await fetch(`/api/files/${id}/download`, { cache: "no-store" });
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to generate download link.");
+      async function requestDownloadUrl() {
+        const res = await fetch(`/api/files/${id}/download`, { cache: "no-store" });
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to generate download link.");
+        }
+        return json.data.url as string;
       }
 
-      window.open(json.data.url, "_blank", "noopener,noreferrer");
+      let url = "";
+      try {
+        url = await requestDownloadUrl();
+      } catch (firstError) {
+        const message = firstError instanceof Error ? firstError.message : String(firstError);
+        const shouldRetry =
+          message.includes("InvalidJWT") || message.includes("expected pattern") || message.includes("exp");
+        if (!shouldRetry) {
+          throw firstError;
+        }
+        url = await requestDownloadUrl();
+      }
+
+      window.open(url, "_blank", "noopener,noreferrer");
       setStatus("Download link generated.");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Download failed.");
@@ -260,6 +276,7 @@ export default function HomePage() {
       }
 
       setPreviewUrl(json.data.url);
+      previewRetryRef.current = false;
       setPreviewFileId(id);
       setPreviewFileName(fileName);
       setSummaryFileId(id);
@@ -280,6 +297,27 @@ export default function HomePage() {
       setStatus(e instanceof Error ? e.message : "Preview failed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function refreshPreviewUrlOnce() {
+    if (!previewFileId || previewRetryRef.current) {
+      return;
+    }
+
+    previewRetryRef.current = true;
+    setStatus("Preview link expired, retrying once...");
+
+    try {
+      const res = await fetch(`/api/files/${previewFileId}/view-url`, { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to refresh preview link.");
+      }
+      setPreviewUrl(json.data.url);
+      setStatus("Preview link refreshed.");
+    } catch (e) {
+      setStatus(e instanceof Error ? e.message : "Failed to refresh preview link.");
     }
   }
 
@@ -444,7 +482,7 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="panel-content">
-                    <iframe title="pdf-preview" src={previewUrl} className="pdf-frame" />
+                    <iframe title="pdf-preview" src={previewUrl} className="pdf-frame" onError={refreshPreviewUrlOnce} />
                   </div>
                 </section>
 
@@ -523,7 +561,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="panel-content">
-                  <iframe title="pdf-preview" src={previewUrl} className="pdf-frame" />
+                  <iframe title="pdf-preview" src={previewUrl} className="pdf-frame" onError={refreshPreviewUrlOnce} />
                 </div>
                 <div className="summary-cta">
                   <button
@@ -561,7 +599,12 @@ export default function HomePage() {
                 Exit Fullscreen
               </button>
             </div>
-            <iframe title="pdf-preview-fullscreen" src={previewUrl} className="pdf-frame-full" />
+            <iframe
+              title="pdf-preview-fullscreen"
+              src={previewUrl}
+              className="pdf-frame-full"
+              onError={refreshPreviewUrlOnce}
+            />
           </div>
         </section>
       ) : null}
